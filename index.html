@@ -1,0 +1,1493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工作记录</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: #f5f5f3;
+    color: #1a1a1a;
+    font-size: 14px;
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+  .container { max-width: 1060px; margin: 0 auto; }
+
+  h1 { font-size: 20px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+
+  .top-bar {
+    display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px;
+  }
+  .user-info {
+    display: flex; align-items: center; gap: 10px; font-size: 13px; color: #666;
+  }
+  .user-info .uname { font-weight: 500; color: #333; }
+  .btn-logout {
+    background: none; border: 1px solid #e8e8e8; border-radius: 6px;
+    padding: 4px 12px; font-size: 12px; cursor: pointer; color: #999;
+  }
+  .btn-logout:hover { border-color: #e74c3c; color: #e74c3c; }
+
+  .month-bar {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;
+  }
+  .month-bar select {
+    font-size: 14px; border: 1px solid #ddd; border-radius: 8px;
+    padding: 6px 10px; background: #fff; cursor: pointer; outline: none;
+  }
+  .month-bar select:focus { border-color: #999; }
+  .month-label { font-size: 13px; color: #666; }
+
+  /* Metrics */
+  .metrics {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 640px) {
+    .metrics { grid-template-columns: repeat(1, 1fr); }
+  }
+  .mc {
+    background: #fff; border-radius: 12px; padding: 14px 16px; border: 1px solid #eee; text-align: center;
+  }
+  .mc-label { font-size: 12px; color: #999; margin-bottom: 6px; }
+  .mc-value { font-size: 24px; font-weight: 500; line-height: 1.2; }
+  .mc-value .unit { font-size: 14px; font-weight: 400; color: #666; margin-left: 2px; }
+  .mc-sub { font-size: 11px; color: #bbb; margin-top: 4px; }
+  .mc-pay .mc-value { color: #0a7c5c; }
+  .mc-detail { font-size: 11px; color: #aaa; margin-top: 4px; }
+
+  /* ========== 日历 + 详情 布局 ========== */
+  .work-section {
+    display: flex; gap: 24px; margin-bottom: 20px; align-items: flex-start;
+  }
+  @media (max-width: 860px) {
+    .work-section { flex-direction: column; }
+  }
+
+  /* --- 左侧日历 --- */
+  .calendar-panel {
+    background: #fff; border-radius: 12px; border: 1px solid #eee;
+    padding: 16px 18px; width: 360px; flex-shrink: 0;
+  }
+  .cal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .cal-header .cal-month-label { font-size: 16px; font-weight: 500; color: #333; }
+  .cal-nav {
+    background: none; border: 1px solid #e8e8e8; border-radius: 6px;
+    padding: 4px 10px; cursor: pointer; font-size: 14px; color: #666;
+    line-height: 1;
+  }
+  .cal-nav:hover { border-color: #999; color: #333; }
+  .cal-weekdays {
+    display: grid; grid-template-columns: repeat(7, 1fr);
+    text-align: center; font-size: 12px; color: #aaa; margin-bottom: 6px; font-weight: 500;
+  }
+  .cal-weekdays span:first-child, .cal-weekdays span:last-child { color: #ccc; }
+  .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; }
+  .cal-cell {
+    aspect-ratio: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: flex-start;
+    border-radius: 8px; cursor: pointer; padding: 4px 2px 3px;
+    transition: background 0.15s; position: relative; min-height: 44px;
+  }
+  .cal-cell:hover { background: #f4f4f4; }
+  .cal-cell.empty { cursor: default; background: none; }
+  .cal-cell.empty:hover { background: none; }
+  .cal-cell.today { background: #f0f7ff; }
+  .cal-cell.selected { background: #e0ecf8; border: 2px solid #5a9fd6; padding: 2px 0 1px; }
+  .cal-num { font-size: 13px; font-weight: 500; color: #333; line-height: 1; margin-bottom: 2px; }
+  .cal-cell.weekend .cal-num { color: #888; }
+  .cal-cell.today .cal-num { color: #185fa5; font-weight: 600; }
+  .cal-cell.selected .cal-num { color: #185fa5; }
+  .cal-dots { display: flex; gap: 2px; flex-wrap: wrap; justify-content: center; }
+  .cal-dot { width: 5px; height: 5px; border-radius: 50%; flex-shrink: 0; }
+  .cal-dot.am { background: #3b82d0; }
+  .cal-dot.pm { background: #e67e22; }
+  .cal-dot.leave-dot { background: #4caf50; }
+  .cal-legend {
+    display: flex; gap: 16px; margin-top: 10px; font-size: 11px; color: #aaa;
+    justify-content: center;
+  }
+  .cal-legend-item { display: flex; align-items: center; gap: 4px; }
+  .cal-legend-dot { width: 6px; height: 6px; border-radius: 50%; }
+
+  /* --- 右侧详情面板 --- */
+  .detail-panel {
+    flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 16px;
+  }
+  .detail-header {
+    background: #fff; border-radius: 12px; border: 1px solid #eee;
+    padding: 16px 20px; display: flex; align-items: center; justify-content: space-between;
+  }
+  .detail-header .sel-date { font-size: 16px; font-weight: 500; }
+  .detail-header .sel-wd { font-size: 13px; color: #888; margin-left: 8px; }
+  .detail-header .sel-count { font-size: 12px; color: #aaa; }
+  .btn-add {
+    background: #0a7c5c; color: #fff; border: none; border-radius: 8px;
+    padding: 8px 18px; font-size: 13px; cursor: pointer; white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .btn-add:hover { background: #086b4d; }
+  .btn-leave {
+    background: #e67e22; color: #fff; border: none; border-radius: 8px;
+    padding: 8px 18px; font-size: 13px; cursor: pointer; white-space: nowrap;
+    transition: background 0.15s; margin-left: 6px;
+  }
+  .btn-leave:hover { background: #cf6d1a; }
+
+  .record-card {
+    background: #fff; border-radius: 10px; border: 1px solid #eee;
+    padding: 14px 18px; display: flex; align-items: center; gap: 12px;
+    transition: border-color 0.15s;
+  }
+  .record-card .card-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .badge {
+    display: inline-block; font-size: 11px; padding: 3px 8px; border-radius: 5px;
+    font-weight: 500; white-space: nowrap;
+  }
+  .badge-slot-am { background: #e6f1fb; color: #185fa5; }
+  .badge-slot-pm { background: #fef3e7; color: #b8731f; }
+  .badge-slot-all { background: #e8f5e9; color: #2e7d32; }
+  .badge-role { display:inline-block; font-size:11px; padding:3px 8px; border-radius:5px; font-weight:500; white-space:nowrap; }
+  .badge-role.assistant { background:#e6f1fb; color:#185fa5; }
+  .badge-role.lead { background:#fef3e7; color:#b8731f; }
+  .badge-role.other { background:#f3f4f6; color:#6b7280; }
+  .badge-pay { display:inline-block; font-size:11px; padding:3px 8px; border-radius:5px; font-weight:500; white-space:nowrap; }
+  .badge-pay.yes { background:#e6f4ef; color:#0a7c5c; }
+  .badge-pay.no { background:#fef3e7; color:#b8731f; }
+  .badge-holiday { display:inline-block; font-size:11px; padding:3px 8px; border-radius:5px; font-weight:500; white-space:nowrap; background:#fef3e7; color:#e67e22; }
+  .badge-note { font-size:13px; color:#555; margin-left: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 60px; }
+
+  .record-card.leave { border-color: #fce4cc; background: #fffdf7; }
+  .badge-leave { display:inline-block; font-size:11px; padding:3px 8px; border-radius:5px; font-weight:500; white-space:nowrap; background:#fff3e4; color:#b8731f; }
+  .leave-days { font-weight:600; color:#e67e22; font-size:14px; white-space:nowrap; }
+  .card-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .btn-edit, .btn-del {
+    background: none; border: 1px solid #e8e8e8; border-radius: 6px;
+    padding: 4px 12px; font-size: 12px; cursor: pointer;
+    color: #666; white-space: nowrap; transition: all 0.15s;
+  }
+  .btn-edit:hover { border-color: #3b82d0; color: #3b82d0; }
+  .btn-del:hover { border-color: #e74c3c; color: #e74c3c; }
+
+  .edit-card {
+    background: #fafdfb; border-radius: 10px; border: 1px solid #d4e8dc;
+    padding: 16px 18px;
+  }
+  .edit-card .edit-row {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;
+  }
+  .edit-card .edit-row:last-child { margin-bottom: 0; }
+  .edit-card select {
+    font-size: 13px; border: 1px solid #ddd; border-radius: 6px;
+    padding: 6px 8px; background: #fff; outline: none; cursor: pointer;
+  }
+  .edit-card select:focus { border-color: #0a7c5c; }
+  .edit-card input[type="text"] {
+    font-size: 13px; border: 1px solid #ddd; border-radius: 6px;
+    padding: 6px 8px; background: #fff; outline: none; flex: 1; min-width: 120px;
+  }
+  .edit-card input[type="text"]:focus { border-color: #0a7c5c; }
+  .edit-card .edit-label {
+    font-size: 12px; color: #888; display: flex; align-items: center; gap: 4px;
+  }
+  .edit-card .edit-label input[type="checkbox"] { margin: 0; }
+  .btn-save {
+    background: #0a7c5c; color: #fff; border: none; border-radius: 6px;
+    padding: 6px 18px; font-size: 13px; cursor: pointer;
+  }
+  .btn-save:hover { background: #086b4d; }
+  .btn-cancel {
+    background: #fff; color: #888; border: 1px solid #ddd; border-radius: 6px;
+    padding: 6px 18px; font-size: 13px; cursor: pointer;
+  }
+  .btn-cancel:hover { border-color: #999; color: #555; }
+
+  .empty-state { text-align: center; color: #ccc; font-size: 13px; padding: 32px 16px; }
+
+  .summary-section {
+    background: #fff; border-radius: 12px; border: 1px solid #eee;
+    padding: 16px 20px; margin-bottom: 20px;
+  }
+  .summary-section h2 { font-size: 14px; font-weight: 500; margin-bottom: 12px; cursor: pointer; user-select: none; display: flex; align-items: center; gap: 6px; }
+  .summary-section h2 .arrow { display: inline-block; transition: transform 0.2s; font-size: 10px; color: #999; }
+  .summary-section h2 .arrow.open { transform: rotate(90deg); }
+  .summary-section .sum-content { overflow: hidden; transition: max-height 0.3s ease; }
+  .summary-section .sum-content.hidden { max-height: 0; }
+  .summary-section .sum-content.visible { max-height: 2000px; }
+  .sum-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .sum-tbl th {
+    text-align: left; font-weight: 500; font-size: 12px; color: #aaa;
+    padding: 6px 4px; border-bottom: 1px solid #f0f0f0; white-space: nowrap;
+  }
+  .sum-tbl td { padding: 7px 4px; border-bottom: 1px solid #f8f8f8; color: #444; }
+  .sum-tbl tr:last-child td { border-bottom: none; }
+  .sum-tbl .total-row td { font-weight: 500; color: #111; border-top: 1px solid #eee; padding-top: 10px; }
+
+  .footer { text-align: center; font-size: 12px; color: #ccc; margin-top: 32px; }
+
+  /* ========== 登录页面 ========== */
+  .auth-overlay {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: url('login-bg.jpg') center/cover no-repeat;
+    z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .auth-box {
+    background: rgba(255,255,255,0.7); border-radius: 16px; box-shadow: 0 8px 40px rgba(0,0,0,0.15);
+    padding: 40px 36px; width: 100%; max-width: 380px;
+    position: relative; z-index: 1;
+  }
+  .auth-box h2 { font-size: 20px; font-weight: 500; margin-bottom: 6px; text-align: center; }
+  .auth-box .auth-sub { font-size: 13px; color: #999; margin-bottom: 28px; text-align: center; }
+  .auth-logo {
+    display: block; width: 72px; height: 72px; border-radius: 50%;
+    margin: 0 auto 16px; object-fit: cover;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+  }
+  .auth-box label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; margin-top: 16px; }
+  .auth-box input[type="text"], .auth-box input[type="password"] {
+    width: 100%; font-size: 14px; border: 1px solid #ddd; border-radius: 8px;
+    padding: 10px 12px; outline: none; box-sizing: border-box;
+  }
+  .auth-box input:focus { border-color: #0a7c5c; }
+  .auth-box .btn-auth {
+    width: 100%; margin-top: 24px; background: #0a7c5c; color: #fff;
+    border: none; border-radius: 8px; padding: 12px; font-size: 15px;
+    cursor: pointer; transition: background 0.15s;
+  }
+  .auth-box .btn-auth:hover { background: #086b4d; }
+  .auth-box .auth-switch {
+    text-align: center; font-size: 13px; color: #888; margin-top: 16px;
+  }
+  .auth-box .auth-switch a { color: #0a7c5c; cursor: pointer; text-decoration: none; }
+  .auth-box .auth-switch a:hover { text-decoration: underline; }
+  .auth-box .auth-error {
+    color: #e74c3c; font-size: 12px; margin-top: 8px; min-height: 18px; text-align: center;
+  }
+  .auth-box .auth-loading { text-align: center; color: #999; margin-top: 8px; font-size: 12px; }
+
+  /* Print */
+  @media print {
+    @page { margin: 12mm; }
+    body { background: #fff; padding: 0; }
+    .btn-add, .btn-leave, .btn-edit, .btn-del, .btn-save, .btn-cancel,
+    .calendar-panel, .detail-panel, .month-bar, h1, .subtitle, .footer,
+    .top-bar { display: none; }
+    .work-section { display: block; }
+    .summary-section .sum-content.hidden { max-height: 2000px; }
+    .summary-section .sum-content { max-height: none !important; }
+    .metrics, .summary-section, .summary-section h2 { margin: 0 0 16px; }
+  }
+
+  #mainContent { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ========== 登录/注册界面 ========== -->
+<div class="auth-overlay" id="authOverlay">
+  <div class="auth-box">
+    <img class="auth-logo" src="logo.png" alt="Logo">
+    <h2 id="authTitle">登录</h2>
+    <p class="auth-sub" id="authSub">请输入账号和密码</p>
+    <label>用户名</label>
+    <input type="text" id="authUsername" placeholder="请输入用户名" autocomplete="username">
+    <label>密码</label>
+    <input type="password" id="authPassword" placeholder="请输入密码" autocomplete="current-password">
+    <div class="auth-error" id="authError"></div>
+    <button class="btn-auth" id="authBtn" onclick="handleAuth()">登 录</button>
+    <div class="auth-loading" id="authLoading" style="display:none;">正在连接...</div>
+    <p class="auth-switch" id="authSwitch">
+      还没有账号？<a href="javascript:void(0)" onclick="toggleAuthMode()">立即注册</a>
+    </p>
+  </div>
+</div>
+
+<!-- ========== 主界面 ========== -->
+<div class="container" id="mainContent">
+  <div class="top-bar">
+    <h1>工作记录</h1>
+    <div class="user-info">
+      <span>👤</span>
+      <span class="uname" id="displayName">—</span>
+      <button class="btn-logout" onclick="doLogout()">退出</button>
+    </div>
+  </div>
+
+  <p class="subtitle">周末工作记录 · 调休统计 · 月度绩效累计</p>
+
+  <div class="month-bar">
+    <span class="month-label">当前月份</span>
+    <select id="selYear" onchange="switchMonth()"></select>
+    <select id="selMonth" onchange="switchMonth()">
+      <option value="1">1月</option><option value="2">2月</option>
+      <option value="3">3月</option><option value="4">4月</option>
+      <option value="5">5月</option><option value="6">6月</option>
+      <option value="7">7月</option><option value="8">8月</option>
+      <option value="9">9月</option><option value="10">10月</option>
+      <option value="11">11月</option><option value="12">12月</option>
+    </select>
+    <button onclick="window.print()" style="margin-left:auto;font-size:13px;border:1px solid #ddd;border-radius:8px;padding:6px 14px;background:#fff;cursor:pointer;color:#555;">打印 / 导出PDF</button>
+  </div>
+
+  <div class="metrics">
+    <div class="mc">
+      <div class="mc-label">课时总数</div>
+      <div class="mc-value" id="mSessions">0<span class="unit">节</span></div>
+      <div class="mc-detail" id="mSessionsDetail"></div>
+    </div>
+    <div class="mc">
+      <div class="mc-label">应得调休</div>
+      <div class="mc-value" id="mRest">0<span class="unit">天</span></div>
+      <div class="mc-sub" id="mRestDetail">周末2:1 · 节假日1:1</div>
+    </div>
+    <div class="mc mc-pay">
+      <div class="mc-label">本月绩效</div>
+      <div class="mc-value" id="mPay">¥0</div>
+      <div class="mc-sub" id="mPayDetail">助教60元 + 主教100元</div>
+    </div>
+  </div>
+
+  <div class="work-section">
+    <div class="calendar-panel" id="calendarPanel">
+      <div class="cal-header">
+        <button class="cal-nav" onclick="navMonth(-1)">◀</button>
+        <span class="cal-month-label" id="calMonthLabel">2026年6月</span>
+        <button class="cal-nav" onclick="navMonth(1)">▶</button>
+      </div>
+      <div class="cal-weekdays">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      <div class="cal-grid" id="calGrid"></div>
+      <div class="cal-legend">
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#3b82d0;"></div> 上午</div>
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#e67e22;"></div> 下午</div>
+        <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#4caf50;"></div> 调休</div>
+        <div class="cal-legend-item" style="color:#bbb;">有记录天数</div>
+      </div>
+    </div>
+
+    <div class="detail-panel" id="detailPanel">
+      <div class="detail-header">
+        <div>
+          <span class="sel-date" id="selDateLabel">6月22日</span>
+          <span class="sel-wd" id="selWdLabel">周一</span>
+          <span class="sel-count" id="selCount"></span>
+        </div>
+        <div>
+          <button class="btn-add" id="btnAdd" onclick="startAdd()">＋ 添加记录</button>
+          <button class="btn-leave" id="btnLeave" onclick="startLeaveAdd()">申请调休</button>
+        </div>
+      </div>
+      <div id="recordList">
+        <div class="empty-state">点击左侧日历选择日期，或点击「添加记录」开始</div>
+      </div>
+      <div id="editArea"></div>
+    </div>
+  </div>
+
+  <div class="summary-section">
+    <h2 onclick="toggleSummary()"><span class="arrow" id="sumArrow">▶</span> 本月汇总明细</h2>
+    <div class="sum-content hidden" id="sumContent">
+    <table class="sum-tbl">
+      <thead>
+        <tr>
+          <th>日期</th>
+          <th>星期</th>
+          <th>时段</th>
+          <th>角色</th>
+          <th>绩效</th>
+          <th>节假日</th>
+          <th>调休</th>
+          <th>备注</th>
+        </tr>
+      </thead>
+      <tbody id="sumBody"></tbody>
+      <tfoot id="sumFoot"></tfoot>
+    </table>
+    </div>
+  </div>
+
+  <div class="footer">数据存储：MySQL 数据库 <span id="storageLabel" style="color:#0a7c5c;">●</span> · 后端 API 端口 5000</div>
+</div>
+
+<script>
+// ─── 认证管理 ──────────────────────────────────────────────
+const TOKEN_KEY = 'work_record_token';
+const USERNAME_KEY = 'work_record_username';
+var AUTH_TOKEN = null;
+var CURRENT_USER = null;
+
+function getAuthHeaders() {
+  var headers = { 'Content-Type': 'application/json' };
+  if (AUTH_TOKEN) headers['Authorization'] = 'Bearer ' + AUTH_TOKEN;
+  return headers;
+}
+
+// ─── 登录/注册模式切换 ────────────────────────────────────
+var authMode = 'login'; // 'login' | 'register'
+
+function toggleAuthMode() {
+  authMode = (authMode === 'login') ? 'register' : 'login';
+  if (authMode === 'login') {
+    document.getElementById('authTitle').textContent = '登录';
+    document.getElementById('authSub').textContent = '请输入账号和密码';
+    document.getElementById('authBtn').textContent = '登 录';
+    document.getElementById('authSwitch').innerHTML = '还没有账号？<a href="javascript:void(0)" onclick="toggleAuthMode()">立即注册</a>';
+  } else {
+    document.getElementById('authTitle').textContent = '注册';
+    document.getElementById('authSub').textContent = '创建属于你自己的工作记录账号';
+    document.getElementById('authBtn').textContent = '注 册';
+    document.getElementById('authSwitch').innerHTML = '已有账号？<a href="javascript:void(0)" onclick="toggleAuthMode()">返回登录</a>';
+  }
+  document.getElementById('authError').textContent = '';
+  document.getElementById('authLoading').style.display = 'none';
+  document.getElementById('authPassword').value = '';
+}
+
+async function handleAuth() {
+  var username = document.getElementById('authUsername').value.trim();
+  var password = document.getElementById('authPassword').value;
+  var errEl = document.getElementById('authError');
+  var loadingEl = document.getElementById('authLoading');
+  var btnEl = document.getElementById('authBtn');
+
+  errEl.textContent = '';
+  if (!username || !password) {
+    errEl.textContent = '请填写用户名和密码';
+    return;
+  }
+
+  btnEl.disabled = true;
+  loadingEl.style.display = '';
+  try {
+    var endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+    var resp = await fetch(API_BASE + endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: username, password: password })
+    });
+    var data = await resp.json();
+    if (!resp.ok) {
+      throw new Error(data.error || '操作失败');
+    }
+    // 保存 token
+    AUTH_TOKEN = data.token;
+    CURRENT_USER = data.username;
+    localStorage.setItem(TOKEN_KEY, AUTH_TOKEN);
+    localStorage.setItem(USERNAME_KEY, CURRENT_USER);
+    // 显示主界面
+    showMain();
+  } catch(e) {
+    errEl.textContent = e.message;
+  } finally {
+    btnEl.disabled = false;
+    loadingEl.style.display = 'none';
+  }
+}
+
+function doLogout() {
+  if (AUTH_TOKEN) {
+    fetch(API_BASE + '/api/auth/logout', {
+      method: 'POST',
+      headers: getAuthHeaders()
+    }).catch(function(){});
+  }
+  AUTH_TOKEN = null;
+  CURRENT_USER = null;
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(USERNAME_KEY);
+  document.getElementById('mainContent').style.display = 'none';
+  document.getElementById('authOverlay').style.display = '';
+  document.getElementById('authUsername').value = '';
+  document.getElementById('authPassword').value = '';
+  document.getElementById('authError').textContent = '';
+}
+
+function showMain() {
+  document.getElementById('authOverlay').style.display = 'none';
+  document.getElementById('mainContent').style.display = 'block';
+  document.getElementById('displayName').textContent = CURRENT_USER;
+  refreshAll().catch(function(err) {
+    console.warn('refreshAll failed:', err);
+    // 即使加载失败，主界面也已经显示
+  });
+}
+
+// 支持回车键提交
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && document.getElementById('mainContent').style.display === 'none') {
+    handleAuth();
+  }
+});
+
+// ─── 全局变量 ────────────────────────────────────────────────
+var selectedDate = '';
+var editingId = null;
+var addingNew = false;
+var addingLeave = false;
+var editingLeaveId = null;
+
+const DAYS_CN = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+const PAY_ASSISTANT = 60;
+const PAY_LEAD = 100;
+const API_BASE = 'http://127.0.0.1:5000';
+var apiAvailable = true;
+
+// ─── 数据层 ──────────────────────────────────────────────────
+function apiUrl(path) {
+  return API_BASE + path;
+}
+
+function yearMonthParams() {
+  return '?year=' + document.getElementById('selYear').value + '&month=' + document.getElementById('selMonth').value;
+}
+
+async function loadEntries() {
+  try {
+    var resp = await fetch(apiUrl('/api/records' + yearMonthParams()), {
+      headers: getAuthHeaders()
+    });
+    if (!resp.ok) throw new Error('API error ' + resp.status);
+    var data = await resp.json();
+    apiAvailable = true;
+    updateStorageLabel(true);
+    return data;
+  } catch(e) {
+    console.warn('API 不可用，降级到 localStorage:', e.message);
+    apiAvailable = false;
+    updateStorageLabel(false);
+    return loadFromLocal();
+  }
+}
+
+function loadFromLocal() {
+  try {
+    var s = localStorage.getItem(storageKey());
+    var entries = s ? JSON.parse(s) : [];
+    entries.forEach(function(e, i) {
+      if (!e._id) e._id = 'local_' + i;
+    });
+    return entries;
+  } catch(e) { return []; }
+}
+
+function storageKey() {
+  return 'ta_records_v3_' + document.getElementById('selYear').value + '_' + document.getElementById('selMonth').value;
+}
+
+function saveEntriesLocal(entries) {
+  try { localStorage.setItem(storageKey(), JSON.stringify(entries)); } catch(e) {}
+}
+
+function updateStorageLabel(ok) {
+  var el = document.getElementById('storageLabel');
+  if (ok) { el.textContent = '●'; el.style.color = '#0a7c5c'; el.title = 'MySQL 数据库连接正常'; }
+  else { el.textContent = '○'; el.style.color = '#e67e22'; el.title = 'API 不可用，使用浏览器本地存储'; }
+}
+
+async function apiAdd(record) {
+  if (!apiAvailable) {
+    var entries = loadFromLocal();
+    record._id = 'local_' + Date.now();
+    entries.push(record);
+    saveEntriesLocal(entries);
+    return record;
+  }
+  var resp = await fetch(apiUrl('/api/records'), {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(record)
+  });
+  if (!resp.ok) throw new Error('POST failed');
+  var result = await resp.json();
+  record._id = result.id;
+  return record;
+}
+
+async function apiUpdate(id, data) {
+  if (!apiAvailable) {
+    var entries = loadFromLocal();
+    for (var i = 0; i < entries.length; i++) {
+      if (entries[i]._id === id) { Object.assign(entries[i], data); break; }
+    }
+    saveEntriesLocal(entries);
+    return;
+  }
+  await fetch(apiUrl('/api/records/' + id), {
+    method: 'PUT',
+    headers: getAuthHeaders(),
+    body: JSON.stringify(data)
+  });
+}
+
+async function apiDelete(id) {
+  if (!apiAvailable) {
+    var entries = loadFromLocal();
+    entries = entries.filter(function(e) { return e._id !== id; });
+    saveEntriesLocal(entries);
+    return;
+  }
+  await fetch(apiUrl('/api/records/' + id), {
+    method: 'DELETE',
+    headers: getAuthHeaders()
+  });
+}
+
+function getWeekday(dateStr) {
+  if (!dateStr) return '';
+  var d = new Date(dateStr + 'T12:00:00');
+  return isNaN(d.getTime()) ? '' : DAYS_CN[d.getDay()];
+}
+
+function pad(n) { return String(n).padStart(2, '0'); }
+
+function findEntryById(entries, id) {
+  for (var i = 0; i < entries.length; i++) {
+    if (entries[i]._id === id) return entries[i];
+  }
+  return null;
+}
+
+// ─── 计算 ────────────────────────────────────────────────────
+function isWeekend(dateStr) {
+  if (!dateStr) return false;
+  var d = new Date(dateStr + 'T12:00:00');
+  if (isNaN(d.getTime())) return false;
+  var dow = d.getDay();
+  return dow === 0 || dow === 6;
+}
+
+function normCountable(e) {
+  var val = e.countable;
+  if (val === true) return (e.role === 'lead' ? 100 : (e.role === 'assistant' ? 60 : 0));
+  if (val === false) return 0;
+  if (typeof val === 'number') return val;
+  return parseFloat(val) || 0;
+}
+
+function calcStats(entries) {
+  var totalWorkDays = 0, totalRest = 0;
+  var assistantPaySessions = 0, leadPaySessions = 0, otherPaySessions = 0, unCountableSessions = 0;
+  var holidaySessions = 0, normalSessions = 0, noRestSessions = 0;
+  var totalLeaveUsed = 0;
+  var totalPay = 0;
+
+  entries.forEach(function(e) {
+    if (e.type === 'leave') {
+      totalLeaveUsed += parseFloat(e.leave_days || 0);
+      return;
+    }
+
+    var countableVal = normCountable(e);
+    var isHoliday = e.holiday === true;
+    var role = e.role || 'assistant';
+    var weekend = isWeekend(e.date);
+
+    totalWorkDays += 0.5;
+
+    if (weekend || isHoliday) { totalRest += 0.5 * (isHoliday ? 1.0 : 0.5); }
+    else { noRestSessions++; }
+
+    if (countableVal > 0) {
+      totalPay += countableVal;
+      if (role === 'lead') leadPaySessions++;
+      else if (role === 'assistant') assistantPaySessions++;
+      else otherPaySessions++;
+    } else { unCountableSessions++; }
+
+    if (isHoliday) holidaySessions++;
+    else normalSessions++;
+  });
+
+  var countableSessions = assistantPaySessions + leadPaySessions + otherPaySessions;
+
+  return {
+    totalWorkDays: totalWorkDays, totalRest: totalRest,
+    countableSessions: countableSessions,
+    assistantPaySessions: assistantPaySessions, leadPaySessions: leadPaySessions, otherPaySessions: otherPaySessions,
+    unCountableSessions: unCountableSessions,
+    totalSessions: entries.filter(function(e) { return e.type !== 'leave'; }).length,
+    holidaySessions: holidaySessions, normalSessions: normalSessions,
+    noRestSessions: noRestSessions,
+    pay: totalPay,
+    totalLeaveUsed: totalLeaveUsed,
+    leaveEntries: entries.filter(function(e) { return e.type === 'leave'; })
+  };
+}
+
+function fmtDecimal(n) { return parseFloat(n.toFixed(2)).toString(); }
+
+// ─── 统一刷新 ─────────────────────────────────────────────────
+async function refreshAll() {
+  var entries = await loadEntries();
+  var dateMap = {};
+  entries.forEach(function(e) {
+    if (!dateMap[e.date]) dateMap[e.date] = {AM: false, PM: false, leave: false};
+    if (e.type === 'leave') { dateMap[e.date].leave = true; return; }
+    dateMap[e.date][e.slot] = true;
+  });
+  renderCalendar(dateMap);
+  await renderDetail(entries);
+  refreshStatsWithEntries(entries);
+}
+
+function refreshStatsWithEntries(entries) {
+  var stats = calcStats(entries);
+  var totalRest = stats.totalRest;
+  var pay = stats.pay;
+
+  document.getElementById('mSessions').innerHTML = stats.totalSessions + '<span class="unit">节</span>';
+  var sessParts = [];
+  if (stats.assistantPaySessions > 0) sessParts.push('助教 ' + stats.assistantPaySessions + ' 节');
+  if (stats.leadPaySessions > 0) sessParts.push('主教 ' + stats.leadPaySessions + ' 节');
+  if (stats.unCountableSessions > 0) sessParts.push('非核算 ' + stats.unCountableSessions + ' 节');
+  document.getElementById('mSessionsDetail').textContent = sessParts.length > 0 ? sessParts.join(' / ') : '';
+
+  var netRest = Math.max(0, totalRest - stats.totalLeaveUsed);
+  document.getElementById('mRest').innerHTML = fmtDecimal(netRest) + '<span class="unit">天</span>';
+  var restParts = [];
+  var weekendNormal = stats.normalSessions - stats.noRestSessions;
+  if (weekendNormal > 0) restParts.push('周末 ' + weekendNormal + ' 节');
+  if (stats.holidaySessions > 0) restParts.push('节假日 ' + stats.holidaySessions + ' 节');
+  var restDetail = '周末 2:1 · 节假日 1:1';
+  if (restParts.length > 0) restDetail += '（' + restParts.join(' + ') + '）';
+  if (stats.totalLeaveUsed > 0) restDetail += '  ·  已用 ' + fmtDecimal(stats.totalLeaveUsed) + ' 天';
+  document.getElementById('mRestDetail').textContent = restDetail;
+
+  document.getElementById('mPay').textContent = '¥' + pay;
+  var payDetailParts = [];
+  if (stats.countableSessions > 0) payDetailParts.push('计薪 ' + stats.countableSessions + ' 节');
+  if (stats.assistantPaySessions > 0) payDetailParts.push('助教 ' + stats.assistantPaySessions + ' 节');
+  if (stats.leadPaySessions > 0) payDetailParts.push('主教 ' + stats.leadPaySessions + ' 节');
+  if (stats.otherPaySessions > 0) payDetailParts.push('其他 ' + stats.otherPaySessions + ' 节');
+  if (stats.unCountableSessions > 0) payDetailParts.push('非核算 ' + stats.unCountableSessions + ' 节');
+  document.getElementById('mPayDetail').textContent = payDetailParts.length > 0 ? payDetailParts.join(' / ') : '暂无核算课时';
+
+  refreshSummaryWithEntries(entries, stats);
+}
+
+function refreshStats() {
+  loadEntries().then(function(entries) { refreshStatsWithEntries(entries); });
+}
+
+// ─── 汇总表 ──────────────────────────────────────────────────
+function refreshSummaryWithEntries(entries, stats) {
+  var sumBody = document.getElementById('sumBody');
+  var sumFoot = document.getElementById('sumFoot');
+  sumBody.innerHTML = '';
+  sumFoot.innerHTML = '';
+
+  if (entries.length === 0) {
+    sumBody.innerHTML = '<tr><td colspan="8" style="color:#ccc;text-align:center;padding:16px 0;">暂无数据</td></tr>';
+    return;
+  }
+
+  var sorted = entries.slice().sort(function(a, b) { return (a.date || '').localeCompare(b.date || ''); });
+  sorted.forEach(function(e) {
+    var wd = getWeekday(e.date);
+
+    if (e.type === 'leave') {
+      var tr = document.createElement('tr');
+      tr.style.background = '#fffdf7';
+      var slotMap2 = { AM: '上午', PM: '下午', ALL: '全天' };
+      var slotText = slotMap2[e.slot] || (e.slot || '—');
+      tr.innerHTML =
+        '<td>' + (e.date || '—') + '</td>' +
+        '<td>' + (wd || '—') + '</td>' +
+        '<td>' + slotText + '</td>' +
+        '<td><span class="badge-leave" style="padding:2px 8px;">申请调休</span></td>' +
+        '<td>—</td>' +
+        '<td>—</td>' +
+        '<td style="color:#e67e22;font-weight:500;">-' + fmtDecimal(parseFloat(e.leave_days || 0)) + '天</td>' +
+        '<td style="color:#888;">' + (e.note || '') + '</td>';
+      sumBody.appendChild(tr);
+      return;
+    }
+
+    var countableVal = normCountable(e);
+    var isHoliday = e.holiday === true;
+    var isLead = e.role === 'lead';
+    var tr = document.createElement('tr');
+    tr.innerHTML =
+      '<td>' + (e.date || '—') + '</td>' +
+      '<td>' + (wd || '—') + '</td>' +
+      '<td>' + (e.slot === 'AM' ? '上午' : '下午') + '</td>' +
+      '<td>' + (isLead ? '<span class="badge-role lead">主教</span>' : e.role === 'other' ? '<span class="badge-role other">其他</span>' : '<span class="badge-role assistant">助教</span>') + '</td>' +
+      '<td>' + (countableVal > 0 ? '<span class="badge-pay yes">¥' + fmtDecimal(countableVal) + '</span>' : '<span class="badge-pay no">无</span>') + '</td>' +
+      '<td>' + (isHoliday ? '<span class="badge-holiday">节假日</span>' : '—') + '</td>' +
+      '<td style="font-weight:500;">' + ((isWeekend(e.date) || isHoliday) ? fmtDecimal(0.5 * (isHoliday ? 1.0 : 0.5)) + '天' : '—') + '</td>' +
+      '<td style="color:#888;">' + (e.note || '') + '</td>';
+    sumBody.appendChild(tr);
+  });
+
+  var totalTr = document.createElement('tr');
+  totalTr.className = 'total-row';
+  var rb2 = '';
+  if (stats.normalSessions > 0) rb2 += '普通' + stats.normalSessions + '节';
+  if (stats.holidaySessions > 0) rb2 += (rb2 ? '+' : '') + '节假日' + stats.holidaySessions + '节';
+  var netRest = Math.max(0, stats.totalRest - stats.totalLeaveUsed);
+  var roleParts = [];
+  if (stats.assistantPaySessions > 0) roleParts.push('助教' + stats.assistantPaySessions + '节');
+  if (stats.leadPaySessions > 0) roleParts.push('主教' + stats.leadPaySessions + '节');
+  if (stats.otherPaySessions > 0) roleParts.push('其他' + stats.otherPaySessions + '节');
+  totalTr.innerHTML =
+    '<td>合计</td><td>' + fmtDecimal(stats.totalWorkDays) + '天</td><td>' + stats.totalSessions + '节</td>' +
+    '<td style="color:#888;font-size:12px;">' + (roleParts.length > 0 ? roleParts.join('+') : '—') + '</td>' +
+    '<td style="color:#0a7c5c;">¥' + stats.pay + '</td>' +
+    '<td style="color:#888;">' + (stats.holidaySessions > 0 ? stats.holidaySessions + '节' : '—') + '</td>' +
+    '<td style="font-weight:500;color:#0a7c5c;">' + fmtDecimal(netRest) + '天</td>' +
+    '<td style="color:#888;font-size:12px;">' + rb2 + '</td>';
+  sumFoot.appendChild(totalTr);
+}
+
+// ─── 日历渲染 ────────────────────────────────────────────────
+function getEntriesForDate(entries, dateStr) {
+  var workItems = [];
+  var leaveItems = [];
+  for (var i = 0; i < entries.length; i++) {
+    if (entries[i].date === dateStr) {
+      if (entries[i].type === 'leave') leaveItems.push(entries[i]);
+      else workItems.push(entries[i]);
+    }
+  }
+  return { work: workItems, leave: leaveItems };
+}
+
+function renderCalendar(dateMap) {
+  var yr = parseInt(document.getElementById('selYear').value);
+  var mo = parseInt(document.getElementById('selMonth').value);
+
+  var months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+  document.getElementById('calMonthLabel').textContent = yr + '年' + months[mo - 1];
+
+  var firstDay = new Date(yr, mo - 1, 1);
+  var lastDay = new Date(yr, mo, 0);
+  var startDow = firstDay.getDay();
+  var totalDays = lastDay.getDate();
+
+  var now = new Date();
+  var todayStr = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+
+  if (!dateMap) dateMap = {};
+
+  var grid = document.getElementById('calGrid');
+  grid.innerHTML = '';
+
+  for (var i = 0; i < startDow; i++) {
+    var emptyCell = document.createElement('div');
+    emptyCell.className = 'cal-cell empty';
+    grid.appendChild(emptyCell);
+  }
+
+  for (var d = 1; d <= totalDays; d++) {
+    var dateStr = yr + '-' + pad(mo) + '-' + pad(d);
+    var cell = document.createElement('div');
+    cell.className = 'cal-cell';
+    cell.setAttribute('data-date', dateStr);
+
+    if (dateStr === todayStr) cell.classList.add('today');
+    if (dateStr === selectedDate) cell.classList.add('selected');
+
+    var dow = new Date(yr, mo - 1, d).getDay();
+    if (dow === 0 || dow === 6) cell.classList.add('weekend');
+
+    cell.onclick = function(ds) { return function() { selectDate(ds); }; }(dateStr);
+
+    var numEl = document.createElement('div');
+    numEl.className = 'cal-num';
+    numEl.textContent = d;
+    cell.appendChild(numEl);
+
+    if (dateMap[dateStr]) {
+      var dotsEl = document.createElement('div');
+      dotsEl.className = 'cal-dots';
+      if (dateMap[dateStr].AM) { var dotA = document.createElement('div'); dotA.className = 'cal-dot am'; dotsEl.appendChild(dotA); }
+      if (dateMap[dateStr].PM) { var dotP = document.createElement('div'); dotP.className = 'cal-dot pm'; dotsEl.appendChild(dotP); }
+      if (dateMap[dateStr].leave) { var dotL = document.createElement('div'); dotL.className = 'cal-dot leave-dot'; dotsEl.appendChild(dotL); }
+      cell.appendChild(dotsEl);
+    }
+
+    grid.appendChild(cell);
+  }
+}
+
+async function selectDate(dateStr) {
+  selectedDate = dateStr;
+  editingId = null; editingLeaveId = null;
+  addingNew = false; addingLeave = false;
+  document.getElementById('btnAdd').style.display = '';
+  document.getElementById('btnLeave').style.display = '';
+  await refreshAll();
+}
+
+async function renderDetail(entries) {
+  var ds = selectedDate;
+  var yr = parseInt(document.getElementById('selYear').value);
+  var mo = parseInt(document.getElementById('selMonth').value);
+  document.getElementById('selDateLabel').textContent = mo + '月' + parseInt(ds.split('-')[2]) + '日';
+  document.getElementById('selWdLabel').textContent = getWeekday(ds) || '';
+
+  var dateItems = getEntriesForDate(entries, ds);
+  var totalCount = dateItems.work.length + dateItems.leave.length;
+  document.getElementById('selCount').textContent = totalCount > 0 ? '（' + totalCount + '条记录）' : '';
+
+  renderRecordCards(dateItems);
+  renderEditArea(dateItems);
+}
+
+function renderRecordCards(dateItems) {
+  var list = document.getElementById('recordList');
+  list.innerHTML = '';
+
+  var hasWork = dateItems.work.length > 0;
+  var hasLeave = dateItems.leave.length > 0;
+
+  if (!hasWork && !hasLeave && !addingNew && !addingLeave && editingId === null && editingLeaveId === null) {
+    list.innerHTML = '<div class="empty-state">该日期暂无工作记录</div>';
+    return;
+  }
+
+  if (addingNew && !hasWork && !hasLeave && !addingLeave) { list.innerHTML = ''; return; }
+
+  dateItems.work.forEach(function(e) {
+    if (editingId === e._id) return;
+    var card = document.createElement('div');
+    card.className = 'record-card';
+    var info = document.createElement('div');
+    info.className = 'card-info';
+
+    var slotBadge = document.createElement('span');
+    slotBadge.className = 'badge ' + (e.slot === 'AM' ? 'badge-slot-am' : 'badge-slot-pm');
+    slotBadge.textContent = e.slot === 'AM' ? '上午' : '下午';
+    info.appendChild(slotBadge);
+
+    var roleBadge = document.createElement('span');
+    var isLead = e.role === 'lead';
+    roleBadge.className = 'badge-role ' + (isLead ? 'lead' : e.role === 'other' ? 'other' : 'assistant');
+    roleBadge.textContent = e.role === 'other' ? '其他' : (isLead ? '主教' : '助教');
+    info.appendChild(roleBadge);
+
+    var countableVal = normCountable(e);
+    if (countableVal > 0) {
+      var payBadge = document.createElement('span');
+      payBadge.className = 'badge-pay yes';
+      payBadge.textContent = '¥' + fmtDecimal(countableVal);
+      info.appendChild(payBadge);
+    } else {
+      var noPayBadge = document.createElement('span');
+      noPayBadge.className = 'badge-pay no';
+      noPayBadge.textContent = '非绩效';
+      info.appendChild(noPayBadge);
+    }
+
+    if (e.holiday === true) {
+      var holiBadge = document.createElement('span');
+      holiBadge.className = 'badge-holiday';
+      holiBadge.textContent = '节假日';
+      info.appendChild(holiBadge);
+    }
+
+    if (e.note) {
+      var noteSpan = document.createElement('span');
+      noteSpan.className = 'badge-note';
+      noteSpan.textContent = e.note; noteSpan.title = e.note;
+      info.appendChild(noteSpan);
+    }
+
+    card.appendChild(info);
+
+    var actions = document.createElement('div');
+    actions.className = 'card-actions';
+    var editBtn = document.createElement('button');
+    editBtn.className = 'btn-edit'; editBtn.textContent = '编辑';
+    editBtn.onclick = (function(id) { return function() { startEdit(id); }; })(e._id);
+    actions.appendChild(editBtn);
+    var delBtn = document.createElement('button');
+    delBtn.className = 'btn-del'; delBtn.textContent = '删除';
+    delBtn.onclick = (function(id) { return function() { deleteEntry(id); }; })(e._id);
+    actions.appendChild(delBtn);
+    card.appendChild(actions);
+    list.appendChild(card);
+  });
+
+  dateItems.leave.forEach(function(e) {
+    if (editingLeaveId === e._id) return;
+    var card = document.createElement('div');
+    card.className = 'record-card leave';
+    var info = document.createElement('div');
+    info.className = 'card-info';
+
+    // 时段
+    var slotMap = { AM: '上午', PM: '下午', ALL: '全天' };
+    if (e.slot) {
+      var slotBadge2 = document.createElement('span');
+      var slotCls = e.slot === 'PM' ? 'badge-slot-pm' : (e.slot === 'ALL' ? 'badge-slot-all' : 'badge-slot-am');
+      slotBadge2.className = 'badge ' + slotCls;
+      slotBadge2.textContent = slotMap[e.slot] || e.slot;
+      info.appendChild(slotBadge2);
+    }
+
+    var leaveBadge = document.createElement('span');
+    leaveBadge.className = 'badge-leave';
+    leaveBadge.textContent = '申请调休';
+    info.appendChild(leaveBadge);
+
+    var daysSpan = document.createElement('span');
+    daysSpan.className = 'leave-days';
+    daysSpan.textContent = '-' + fmtDecimal(parseFloat(e.leave_days || 0)) + '天';
+    info.appendChild(daysSpan);
+
+    if (e.note) {
+      var noteSpan2 = document.createElement('span');
+      noteSpan2.className = 'badge-note';
+      noteSpan2.textContent = e.note; noteSpan2.title = e.note;
+      info.appendChild(noteSpan2);
+    }
+
+    card.appendChild(info);
+
+    var leaveActions = document.createElement('div');
+    leaveActions.className = 'card-actions';
+    var editLeaveBtn = document.createElement('button');
+    editLeaveBtn.className = 'btn-edit'; editLeaveBtn.textContent = '编辑';
+    editLeaveBtn.onclick = (function(id) { return function() { startEditLeave(id); }; })(e._id);
+    leaveActions.appendChild(editLeaveBtn);
+    var delLeaveBtn = document.createElement('button');
+    delLeaveBtn.className = 'btn-del'; delLeaveBtn.textContent = '删除';
+    delLeaveBtn.onclick = (function(id) { return function() { deleteLeaveEntry(id); }; })(e._id);
+    leaveActions.appendChild(delLeaveBtn);
+    card.appendChild(leaveActions);
+    list.appendChild(card);
+  });
+
+  if (list.children.length === 0 && !addingNew && !addingLeave) {
+    list.innerHTML = '<div class="empty-state">该日期暂无工作记录</div>';
+  }
+}
+
+// ─── 编辑区域 ────────────────────────────────────────────────
+async function renderEditArea(dateItems) {
+  var area = document.getElementById('editArea');
+  area.innerHTML = '';
+
+  if (addingNew) {
+    renderForm(area, null);
+  } else if (addingLeave) {
+    renderLeaveForm(area, null);
+  } else if (editingId !== null) {
+    var entries = await loadEntries();
+    var entry = findEntryById(entries, editingId);
+    if (entry) renderForm(area, entry);
+  } else if (editingLeaveId !== null) {
+    var entries2 = await loadEntries();
+    var leaveEntry = findEntryById(entries2, editingLeaveId);
+    if (leaveEntry) renderLeaveForm(area, leaveEntry);
+  }
+}
+
+function renderForm(container, entry) {
+  var isNew = (entry === null);
+  var e = entry || { slot: 'AM', role: 'assistant', countable: 60, holiday: false, note: '', date: selectedDate };
+  var entryId = entry ? entry._id : null;
+
+  var card = document.createElement('div');
+  card.className = 'edit-card';
+
+  var row1 = document.createElement('div');
+  row1.className = 'edit-row';
+
+  var slotSel = document.createElement('select');
+  slotSel.id = 'formSlot';
+  ['AM', 'PM'].forEach(function(v) {
+    var opt = document.createElement('option');
+    opt.value = v; opt.textContent = v === 'AM' ? '上午' : '下午';
+    if (v === e.slot) opt.selected = true;
+    slotSel.appendChild(opt);
+  });
+  row1.appendChild(slotSel);
+
+  var roleSel = document.createElement('select');
+  roleSel.id = 'formRole';
+  [{v:'assistant',l:'助教'},{v:'lead',l:'主教'},{v:'other',l:'其他'}].forEach(function(r) {
+    var opt = document.createElement('option');
+    opt.value = r.v; opt.textContent = r.l;
+    if ((e.role || 'assistant') === r.v) opt.selected = true;
+    roleSel.appendChild(opt);
+  });
+  row1.appendChild(roleSel);
+
+  var lblP = document.createElement('label');
+  lblP.className = 'edit-label';
+  lblP.style.cssText = 'gap:4px;';
+  lblP.appendChild(document.createTextNode('绩效'));
+  var inpPay = document.createElement('input');
+  inpPay.type = 'number'; inpPay.id = 'formCountablePay';
+  inpPay.min = '0'; inpPay.step = '10';
+  inpPay.style.cssText = 'width:60px;padding:4px 6px;border:1px solid #ddd;border-radius:4px;font-size:13px;';
+  var countableVal = e.countable;
+  if (countableVal === true) countableVal = (e.role === 'lead' ? 100 : 60);
+  else if (countableVal === false) countableVal = 0;
+  else countableVal = countableVal || 0;
+  inpPay.value = countableVal;
+  lblP.appendChild(inpPay);
+  lblP.appendChild(document.createTextNode(' ¥'));
+  row1.appendChild(lblP);
+
+  roleSel.addEventListener('change', function() {
+    var curVal = parseInt(inpPay.value) || 0;
+    if (curVal === 0 || curVal === 60 || curVal === 100) {
+      if (roleSel.value === 'lead') inpPay.value = 100;
+      else if (roleSel.value === 'assistant') inpPay.value = 60;
+      else inpPay.value = 0;
+    }
+  });
+
+  var lblH = document.createElement('label');
+  lblH.className = 'edit-label';
+  var cbH = document.createElement('input');
+  cbH.type = 'checkbox'; cbH.id = 'formHoliday';
+  cbH.checked = e.holiday === true;
+  lblH.appendChild(cbH);
+  lblH.appendChild(document.createTextNode(' 节假日'));
+  row1.appendChild(lblH);
+
+  var noteInput = document.createElement('input');
+  noteInput.type = 'text'; noteInput.id = 'formNote';
+  noteInput.placeholder = '课程名 / 地点 / 其他';
+  noteInput.value = e.note || '';
+  row1.appendChild(noteInput);
+
+  card.appendChild(row1);
+
+  var row2 = document.createElement('div');
+  row2.className = 'edit-row';
+  row2.style.justifyContent = 'flex-end';
+
+  var saveBtn = document.createElement('button');
+  saveBtn.className = 'btn-save';
+  saveBtn.textContent = isNew ? '保存' : '确认修改';
+  saveBtn.onclick = (function(id) { return function() { saveForm(id); }; })(entryId);
+
+  var cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn-cancel';
+  cancelBtn.textContent = '取消';
+  cancelBtn.onclick = cancelEdit;
+
+  row2.appendChild(cancelBtn);
+  row2.appendChild(saveBtn);
+  card.appendChild(row2);
+
+  container.appendChild(card);
+}
+
+function startLeaveAdd() {
+  if (!selectedDate) {
+    var now = new Date();
+    selectedDate = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+  }
+  editingId = null; editingLeaveId = null;
+  addingNew = false; addingLeave = true;
+  document.getElementById('btnAdd').style.display = 'none';
+  document.getElementById('btnLeave').style.display = 'none';
+  loadEntries().then(function(entries) {
+    var dateItems = getEntriesForDate(entries, selectedDate);
+    renderRecordCards(dateItems);
+    renderEditArea(dateItems);
+  });
+}
+
+function startEditLeave(id) {
+  editingId = null; editingLeaveId = id;
+  addingNew = false; addingLeave = false;
+  document.getElementById('btnAdd').style.display = 'none';
+  document.getElementById('btnLeave').style.display = 'none';
+  loadEntries().then(function(entries) {
+    var dateItems = getEntriesForDate(entries, selectedDate);
+    renderRecordCards(dateItems);
+    renderEditArea(dateItems);
+  });
+}
+
+function renderLeaveForm(container, entry) {
+  var e = entry || { leave_days: '0.5', note: '', slot: 'AM' };
+  var entryId = entry ? entry._id : null;
+
+  var card = document.createElement('div');
+  card.className = 'edit-card';
+  card.style.borderColor = '#fce4cc';
+
+  var titleRow = document.createElement('div');
+  titleRow.style.cssText = 'font-size:13px;color:#e67e22;font-weight:600;margin-bottom:10px;';
+  titleRow.textContent = '▶ 申请调休';
+  card.appendChild(titleRow);
+
+  var slotRow = document.createElement('div');
+  slotRow.className = 'edit-row';
+
+  var slotLbl = document.createElement('span');
+  slotLbl.style.cssText = 'font-size:13px;color:#666;';
+  slotLbl.textContent = '时段';
+  slotRow.appendChild(slotLbl);
+
+  var slotSel = document.createElement('select');
+  slotSel.id = 'formLeaveSlot';
+  [{v:'AM',l:'上午'},{v:'PM',l:'下午'},{v:'ALL',l:'全天'}].forEach(function(s) {
+    var opt = document.createElement('option');
+    opt.value = s.v; opt.textContent = s.l;
+    if ((e.slot || 'AM') === s.v) opt.selected = true;
+    slotSel.appendChild(opt);
+  });
+  slotRow.appendChild(slotSel);
+
+  var daysLbl = document.createElement('span');
+  daysLbl.style.cssText = 'font-size:13px;color:#666;';
+  daysLbl.textContent = '天数';
+  slotRow.appendChild(daysLbl);
+
+  var daysSel = document.createElement('select');
+  daysSel.id = 'formLeaveDays';
+  [0.25, 0.5, 1, 1.5, 2, 2.5, 3, 4, 5].forEach(function(v) {
+    var opt = document.createElement('option');
+    opt.value = v; opt.textContent = v + ' 天';
+    if (parseFloat(e.leave_days || 0.5) === v) opt.selected = true;
+    daysSel.appendChild(opt);
+  });
+  slotRow.appendChild(daysSel);
+
+  slotSel.addEventListener('change', function() {
+    if (slotSel.value === 'ALL') daysSel.value = '1';
+    else daysSel.value = '0.5';
+  });
+
+  card.appendChild(slotRow);
+
+  var row1 = document.createElement('div');
+  row1.className = 'edit-row';
+
+  var noteInput = document.createElement('input');
+  noteInput.type = 'text'; noteInput.id = 'formLeaveNote';
+  noteInput.placeholder = '调休原因（选填）';
+  noteInput.value = e.note || '';
+  noteInput.style.cssText = 'flex:1;';
+  row1.appendChild(noteInput);
+
+  card.appendChild(row1);
+
+  var row2 = document.createElement('div');
+  row2.className = 'edit-row';
+  row2.style.justifyContent = 'flex-end';
+
+  var saveBtn = document.createElement('button');
+  saveBtn.className = 'btn-save';
+  saveBtn.textContent = entryId ? '确认修改' : '保存';
+  saveBtn.onclick = (function(id) { return function() { saveLeaveForm(id); }; })(entryId);
+
+  var cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn-cancel';
+  cancelBtn.textContent = '取消';
+  cancelBtn.onclick = cancelEdit;
+
+  row2.appendChild(cancelBtn);
+  row2.appendChild(saveBtn);
+  card.appendChild(row2);
+
+  container.appendChild(card);
+}
+
+async function saveLeaveForm(existingId) {
+  var slot = document.getElementById('formLeaveSlot').value;
+  var leaveDays = parseFloat(document.getElementById('formLeaveDays').value || 0.5);
+  var note = document.getElementById('formLeaveNote').value;
+
+  if (existingId !== null) {
+    await apiUpdate(existingId, { leave_days: leaveDays, note: note, slot: slot });
+  } else {
+    await apiAdd({ date: selectedDate, type: 'leave', leave_days: leaveDays, note: note, slot: slot });
+  }
+
+  editingLeaveId = null; addingLeave = false;
+  document.getElementById('btnAdd').style.display = '';
+  document.getElementById('btnLeave').style.display = '';
+  await refreshAll();
+}
+
+async function deleteLeaveEntry(id) {
+  if (!confirm('确认删除这条调休记录？')) return;
+  await apiDelete(id);
+  editingLeaveId = null; addingLeave = false;
+  document.getElementById('btnAdd').style.display = '';
+  document.getElementById('btnLeave').style.display = '';
+  await refreshAll();
+}
+
+async function startAdd() {
+  if (!selectedDate) {
+    var now = new Date();
+    selectedDate = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+  }
+  editingId = null; editingLeaveId = null;
+  addingNew = true; addingLeave = false;
+  document.getElementById('btnAdd').style.display = 'none';
+  document.getElementById('btnLeave').style.display = 'none';
+  await refreshAll();
+}
+
+function startEdit(id) {
+  editingId = id; editingLeaveId = null;
+  addingNew = false; addingLeave = false;
+  document.getElementById('btnAdd').style.display = 'none';
+  document.getElementById('btnLeave').style.display = 'none';
+  loadEntries().then(function(entries) {
+    var dateItems = getEntriesForDate(entries, selectedDate);
+    renderRecordCards(dateItems);
+    renderEditArea(dateItems);
+  });
+}
+
+async function cancelEdit() {
+  editingId = null; editingLeaveId = null;
+  addingNew = false; addingLeave = false;
+  document.getElementById('btnAdd').style.display = '';
+  document.getElementById('btnLeave').style.display = '';
+  await refreshAll();
+}
+
+async function saveForm(existingId) {
+  var slot = document.getElementById('formSlot').value;
+  var role = document.getElementById('formRole').value;
+  var countable = Math.round((parseFloat(document.getElementById('formCountablePay').value) || 0) * 100) / 100;
+  var holiday = document.getElementById('formHoliday').checked;
+  var note = document.getElementById('formNote').value;
+
+  if (existingId !== null) {
+    await apiUpdate(existingId, { slot: slot, role: role, countable: countable, holiday: holiday, note: note });
+  } else {
+    await apiAdd({ date: selectedDate, slot: slot, role: role, countable: countable, holiday: holiday, note: note });
+  }
+
+  editingId = null; editingLeaveId = null;
+  addingNew = false; addingLeave = false;
+  document.getElementById('btnAdd').style.display = '';
+  document.getElementById('btnLeave').style.display = '';
+  await refreshAll();
+}
+
+async function deleteEntry(id) {
+  if (!confirm('确认删除这条记录？')) return;
+  await apiDelete(id);
+  editingId = null; editingLeaveId = null;
+  addingNew = false; addingLeave = false;
+  document.getElementById('btnAdd').style.display = '';
+  document.getElementById('btnLeave').style.display = '';
+  await refreshAll();
+}
+
+async function switchMonth() {
+  editingId = null; editingLeaveId = null;
+  addingNew = false; addingLeave = false;
+  document.getElementById('btnAdd').style.display = '';
+  document.getElementById('btnLeave').style.display = '';
+  if (selectedDate) {
+    var yr = parseInt(document.getElementById('selYear').value);
+    var mo = parseInt(document.getElementById('selMonth').value);
+    var parts = selectedDate.split('-');
+    if (parseInt(parts[0]) !== yr || parseInt(parts[1]) !== mo) {
+      var now = new Date();
+      if (now.getFullYear() === yr && (now.getMonth() + 1) === mo) {
+        selectedDate = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+      } else {
+        selectedDate = yr + '-' + pad(mo) + '-01';
+      }
+    }
+  }
+  await refreshAll();
+}
+
+async function navMonth(dir) {
+  var moSel = document.getElementById('selMonth');
+  var yrSel = document.getElementById('selYear');
+  var mo = parseInt(moSel.value);
+  var yr = parseInt(yrSel.value);
+  mo += dir;
+  if (mo < 1) { mo = 12; yr--; }
+  if (mo > 12) { mo = 1; yr++; }
+  moSel.value = mo;
+  for (var i = 0; i < yrSel.options.length; i++) {
+    if (parseInt(yrSel.options[i].value) === yr) { yrSel.selectedIndex = i; break; }
+  }
+  if (yrSel.value != yr) {
+    mo -= dir;
+    if (mo < 1) { mo = 12; yr++; }
+    if (mo > 12) { mo = 1; yr--; }
+    moSel.value = mo;
+  }
+  switchMonth();
+}
+
+function toggleSummary() {
+  var content = document.getElementById('sumContent');
+  var arrow = document.getElementById('sumArrow');
+  if (content.classList.contains('hidden')) {
+    content.classList.remove('hidden'); content.classList.add('visible');
+    arrow.classList.add('open');
+  } else {
+    content.classList.add('hidden'); content.classList.remove('visible');
+    arrow.classList.remove('open');
+  }
+}
+
+// ─── 初始化 ───────────────────────────────────────────────────
+(async function init() {
+  // 检查是否已登录
+  var savedToken = localStorage.getItem(TOKEN_KEY);
+  var savedUser = localStorage.getItem(USERNAME_KEY);
+  if (savedToken && savedUser) {
+    // 尝试验证 token 是否仍然有效
+    try {
+      AUTH_TOKEN = savedToken;
+      var resp = await fetch(API_BASE + '/api/auth/me', {
+        headers: getAuthHeaders()
+      });
+      if (resp.ok) {
+        CURRENT_USER = savedUser;
+        showMain();
+      } else {
+        // token 过期，清除
+        localStorage.removeItem(TOKEN_KEY);
+        localStorage.removeItem(USERNAME_KEY);
+        AUTH_TOKEN = null;
+      }
+    } catch(e) {
+      // 后端不可用也显示登录界面
+      AUTH_TOKEN = null;
+    }
+  }
+
+  var now = new Date();
+  var yrSel = document.getElementById('selYear');
+  for (var y = now.getFullYear() - 2; y <= now.getFullYear() + 1; y++) {
+    var opt = document.createElement('option');
+    opt.value = y; opt.textContent = y + '年';
+    if (y === now.getFullYear()) opt.selected = true;
+    yrSel.appendChild(opt);
+  }
+  document.getElementById('selMonth').value = now.getMonth() + 1;
+  selectedDate = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+  // 只在已登录时加载数据
+  if (CURRENT_USER) {
+    await refreshAll();
+  }
+})();
+</script>
+</body>
+</html>
